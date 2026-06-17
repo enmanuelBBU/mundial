@@ -2,19 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ApiMatch, GroupTable, ParticipantResult } from "@/lib/types";
+import type {
+  ApiMatch,
+  Bet,
+  GroupTable,
+  MoneyRankEntry,
+  ParticipantResult,
+  SessionUser,
+} from "@/lib/types";
 import RankingTable from "./RankingTable";
 import MatchesView from "./MatchesView";
 import TeamsView from "./TeamsView";
 import GroupsView from "./GroupsView";
+import BettingView from "./BettingView";
 
-type Tab = "ranking" | "partidos" | "equipos" | "grupos";
+type Tab = "ranking" | "partidos" | "equipos" | "grupos" | "apuestas";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "ranking", label: "Ranking", icon: "🏆" },
   { id: "partidos", label: "Partidos", icon: "⚽" },
   { id: "equipos", label: "Equipos", icon: "🎽" },
   { id: "grupos", label: "Grupos", icon: "📊" },
+  { id: "apuestas", label: "Apuestas", icon: "💰" },
 ];
 
 interface Props {
@@ -24,6 +33,11 @@ interface Props {
   familyTeams: string[];
   updatedAt: string;
   isDemo: boolean;
+  bettingConfigured: boolean;
+  currentUser: SessionUser | null;
+  userBets: Bet[];
+  moneyRanking: MoneyRankEntry[];
+  familyNames: string[];
 }
 
 export default function Dashboard({
@@ -33,6 +47,11 @@ export default function Dashboard({
   familyTeams,
   updatedAt,
   isDemo,
+  bettingConfigured,
+  currentUser,
+  userBets,
+  moneyRanking,
+  familyNames,
 }: Props) {
   const [tab, setTab] = useState<Tab>("ranking");
   const [refreshing, setRefreshing] = useState(false);
@@ -101,6 +120,16 @@ export default function Dashboard({
       {tab === "partidos" && <MatchesView matches={matches} />}
       {tab === "equipos" && <TeamsView matches={matches} familyTeams={familyTeams} />}
       {tab === "grupos" && <GroupsView groups={groups} matches={matches} />}
+      {tab === "apuestas" && (
+        <BettingView
+          configured={bettingConfigured}
+          user={currentUser}
+          matches={matches}
+          userBets={userBets}
+          ranking={moneyRanking}
+          familyNames={familyNames}
+        />
+      )}
     </div>
   );
 }

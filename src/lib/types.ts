@@ -55,3 +55,34 @@ export interface ParticipantResult {
   teams: ParticipantTeam[];
   totalPoints: number;
 }
+
+// ─── Apuestas con dinero ficticio ───────────────────────────────────────────
+export type Prediction = "HOME" | "DRAW" | "AWAY";
+export type BetStatus = "PENDING" | "WON" | "LOST";
+
+export interface SessionUser {
+  id: string;
+  name: string;
+  balance: number;
+}
+
+export interface Bet {
+  id: string;
+  matchId: number;
+  prediction: Prediction;
+  amount: number;
+  status: BetStatus;
+  payout: number;
+  createdAt: string;
+}
+
+export interface MoneyRankEntry {
+  name: string;
+  balance: number;
+}
+
+// Resultado estándar de las acciones de servidor (login, apostar…).
+export interface ActionResult {
+  ok: boolean;
+  error?: string;
+}
