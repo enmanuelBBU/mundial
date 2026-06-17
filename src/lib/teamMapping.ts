@@ -4,8 +4,8 @@ export const TEAM_MAP: Record<string, string> = {
   "Argentina":      "Argentina",
   "Austria":        "Austria",
   "Colombia":       "Colombia",
-  "Corea del Sur":  "Korea Republic",
-  "Corea":          "Korea Republic",
+  "Corea del Sur":  "South Korea",
+  "Corea":          "South Korea",
   "España":         "Spain",
   "Francia":        "France",
   "Inglaterra":     "England",
@@ -19,6 +19,19 @@ export const TEAM_MAP: Record<string, string> = {
 
 export function toApiName(spanishName: string): string {
   return TEAM_MAP[spanishName] ?? spanishName;
+}
+
+// Reverso: nombre de la API (inglés) → español, para los equipos que conocemos.
+// Los que no estén mapeados se muestran con su nombre oficial en inglés.
+const REVERSE_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(TEAM_MAP)
+    .filter(([es]) => es !== "Corea") // evita duplicado de Corea del Sur
+    .map(([es, en]) => [en, es])
+);
+
+export function toSpanishName(apiName: string | null | undefined): string {
+  if (!apiName) return "Por definir";
+  return REVERSE_MAP[apiName] ?? apiName;
 }
 
 // Banderas emoji por nombre en español
