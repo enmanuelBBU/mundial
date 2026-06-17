@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --grass: #0d4a1e;
+  --grass-light: #1a6b30;
+  --gold: #C8A84B;
+  --gold-light: #e8c76b;
+}
+
+body {
+  background-color: #080f12;
+  color: #f0f0f0;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Efecto campo de fútbol en el fondo */
+.field-bg {
+  background-color: #080f12;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 60px,
+      rgba(255,255,255,0.015) 60px,
+      rgba(255,255,255,0.015) 61px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 60px,
+      rgba(255,255,255,0.015) 60px,
+      rgba(255,255,255,0.015) 61px
+    );
+}
+
+.font-heading {
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.05em;
+}
+
+/* Tarjetas con efecto glass */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+}
+
+/* Gradiente dorado del título */
+.gold-gradient {
+  background: linear-gradient(135deg, #C8A84B 0%, #f0d875 50%, #C8A84B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Podio top 3 */
+.rank-1 { background: linear-gradient(135deg, rgba(200,168,75,0.25) 0%, rgba(200,168,75,0.08) 100%); border-color: rgba(200,168,75,0.5) !important; }
+.rank-2 { background: linear-gradient(135deg, rgba(192,192,192,0.20) 0%, rgba(192,192,192,0.06) 100%); border-color: rgba(192,192,192,0.4) !important; }
+.rank-3 { background: linear-gradient(135deg, rgba(205,127,50,0.20) 0%, rgba(205,127,50,0.06) 100%); border-color: rgba(205,127,50,0.4) !important; }
+
+/* Animación de entrada */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-in {
+  animation: slideIn 0.4s ease forwards;
+}
