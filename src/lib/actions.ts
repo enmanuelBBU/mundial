@@ -10,13 +10,18 @@ import {
   setSessionCookie,
   clearSessionCookie,
 } from "./session";
-import { createUser, getUserRawByName, placeBet } from "./bets";
+import { createUser, getUserRawByName, placeBet, saveUserTeams } from "./bets";
 import type { ActionResult, Prediction } from "./types";
 
 const PIN_RE = /^\d{4}$/;
 
 // Entra o se registra: si el nombre existe verifica el PIN; si no, crea la cuenta.
-export async function loginAction(name: string, pin: string): Promise<ActionResult> {
+// teams: selecciones de equipos para nuevos participantes (ignorado en login).
+export async function loginAction(
+  name: string,
+  pin: string,
+  teams: string[] = []
+): Promise<ActionResult> {
   if (!isBettingConfigured())
     return { ok: false, error: "Las apuestas aún no están configuradas." };
 
@@ -31,6 +36,9 @@ export async function loginAction(name: string, pin: string): Promise<ActionResu
   } else {
     const user = await createUser(name, hashPin(pin));
     if (!user) return { ok: false, error: "No se pudo crear la cuenta." };
+    // Guardar selecciones de equipos si se proporcionaron (máx. 3, sin duplicados).
+    const uniqueTeams = [...new Set(teams.filter(Boolean))].slice(0, 3);
+    if (uniqueTeams.length > 0) await saveUserTeams(user.id, uniqueTeams);
     await setSessionCookie(user.id);
   }
   revalidatePath("/");

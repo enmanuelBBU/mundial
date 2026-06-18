@@ -40,6 +40,7 @@ interface Props {
   moneyRanking: MoneyRankEntry[];
   allMatchBets: MatchBetEntry[];
   familyNames: string[];
+  allTeams: string[];
 }
 
 export default function Dashboard({
@@ -55,6 +56,7 @@ export default function Dashboard({
   moneyRanking,
   allMatchBets,
   familyNames,
+  allTeams,
 }: Props) {
   const [tab, setTab] = useState<Tab>("ranking");
   const [refreshing, setRefreshing] = useState(false);
@@ -132,6 +134,7 @@ export default function Dashboard({
           ranking={moneyRanking}
           allMatchBets={allMatchBets}
           familyNames={familyNames}
+          allTeams={allTeams}
         />
       )}
     </div>

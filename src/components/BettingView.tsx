@@ -29,6 +29,7 @@ interface Props {
   ranking: MoneyRankEntry[];
   allMatchBets: MatchBetEntry[];
   familyNames: string[];
+  allTeams: string[];
 }
 
 export default function BettingView({
@@ -39,6 +40,7 @@ export default function BettingView({
   ranking,
   allMatchBets,
   familyNames,
+  allTeams,
 }: Props) {
   if (!configured) {
     return (
@@ -57,7 +59,7 @@ export default function BettingView({
       {user ? (
         <LoggedIn user={user} matches={matches} userBets={userBets} allMatchBets={allMatchBets} />
       ) : (
-        <LoginForm familyNames={familyNames} />
+        <LoginForm familyNames={familyNames} allTeams={allTeams} />
       )}
 
       <MoneyRanking ranking={ranking} meName={user?.name} />
@@ -66,14 +68,51 @@ export default function BettingView({
 }
 
 // ─── Login (nombre + PIN) ───────────────────────────────────────────────────
-function LoginForm({ familyNames }: { familyNames: string[] }) {
+function LoginForm({ familyNames, allTeams }: { familyNames: string[]; allTeams: string[] }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [isNew, setIsNew] = useState(false);
+  // Paso del flujo para nuevos participantes: 1 = nombre+PIN, 2 = equipos
+  const [step, setStep] = useState<1 | 2>(1);
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+
+  const resetForm = (newMode: boolean) => {
+    setIsNew(newMode);
+    setName("");
+    setPin("");
+    setError(null);
+    setStep(1);
+    setSelectedTeams([]);
+  };
+
+  const toggleTeam = (team: string) => {
+    setSelectedTeams((prev) =>
+      prev.includes(team)
+        ? prev.filter((t) => t !== team)         // deseleccionar
+        : prev.length < 3 ? [...prev, team] : prev // max 3
+    );
+  };
+
+  const goToStep2 = () => {
+    setError(null);
+    if (!name.trim()) { setError("Escribe tu nombre."); return; }
+    if (pin.length !== 4) { setError("El PIN debe tener 4 dígitos."); return; }
+    setStep(2);
+  };
 
   const submit = () => {
+    setError(null);
+    start(async () => {
+      const res = await loginAction(name.trim(), pin, selectedTeams);
+      if (res.ok) router.refresh();
+      else { setStep(1); setError(res.error ?? "Error al entrar."); }
+    });
+  };
+
+  const submitExisting = () => {
     setError(null);
     start(async () => {
       const res = await loginAction(name, pin);
@@ -82,29 +121,144 @@ function LoginForm({ familyNames }: { familyNames: string[] }) {
     });
   };
 
+  // ── Paso 2: selector de equipos ──
+  if (isNew && step === 2) {
+    return (
+      <div className="glass-card border p-6 max-w-lg mx-auto">
+        <button
+          onClick={() => setStep(1)}
+          className="text-xs text-white/40 hover:text-white/70 mb-4 flex items-center gap-1"
+        >
+          ← Volver
+        </button>
+        <h3 className="font-heading text-2xl text-[#C8A84B] tracking-wider mb-1 text-center">
+          ELIGE TUS 3 EQUIPOS
+        </h3>
+        <p className="text-xs text-white/40 text-center mb-4">
+          Escoge exactamente 3 selecciones. Tus puntos en el ranking dependerán de cómo les vaya a estos equipos.
+        </p>
+
+        {/* Contador */}
+        <div className="flex justify-center gap-2 mb-4">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all ${
+                selectedTeams[i]
+                  ? "border-[#C8A84B] bg-[#C8A84B]/20 text-[#C8A84B]"
+                  : "border-white/20 text-white/20"
+              }`}
+            >
+              {selectedTeams[i] ? "✓" : i + 1}
+            </div>
+          ))}
+        </div>
+
+        {/* Grid de equipos */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto pr-1 mb-4">
+          {allTeams.map((team) => {
+            const selected = selectedTeams.includes(team);
+            const disabled = !selected && selectedTeams.length >= 3;
+            return (
+              <button
+                key={team}
+                onClick={() => toggleTeam(team)}
+                disabled={disabled}
+                className={`text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  selected
+                    ? "bg-[#C8A84B] text-black"
+                    : disabled
+                    ? "bg-white/3 text-white/20 cursor-not-allowed"
+                    : "bg-white/5 text-white/70 hover:bg-white/10"
+                }`}
+              >
+                {team}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Seleccionados */}
+        {selectedTeams.length > 0 && (
+          <p className="text-xs text-white/50 text-center mb-3">
+            Seleccionados: <span className="text-[#C8A84B] font-semibold">{selectedTeams.join(" · ")}</span>
+          </p>
+        )}
+
+        {error && <p className="text-red-400 text-sm mb-3 text-center">{error}</p>}
+
+        <button
+          onClick={submit}
+          disabled={pending || selectedTeams.length !== 3}
+          className="w-full py-2.5 rounded-lg bg-[#C8A84B] text-black font-bold disabled:opacity-40 transition-opacity"
+        >
+          {pending ? "Creando cuenta…" : `✨ Crear cuenta con ${selectedTeams.length}/3 equipos`}
+        </button>
+      </div>
+    );
+  }
+
+  // ── Paso 1: nombre + PIN (o login existente) ──
   return (
     <div className="glass-card border p-6 max-w-sm mx-auto">
       <h3 className="font-heading text-2xl text-[#C8A84B] tracking-wider mb-1 text-center">
-        ENTRAR PARA APOSTAR
+        {isNew ? "NUEVO PARTICIPANTE" : "ENTRAR PARA APOSTAR"}
       </h3>
-      <p className="text-xs text-white/40 text-center mb-5">
-        El login es opcional (solo para apostar). Si es tu primera vez, elige tu nombre y crea
-        un PIN de 4 dígitos.
+      <p className="text-xs text-white/40 text-center mb-4">
+        {isNew
+          ? "Escribe tu nombre y crea un PIN de 4 dígitos para unirte."
+          : "El login es opcional (solo para apostar). Si es tu primera vez, elige tu nombre y crea un PIN de 4 dígitos."}
       </p>
 
+      {/* Toggle participante nuevo / existente */}
+      <div className="flex rounded-lg overflow-hidden border border-white/10 mb-4 text-xs font-semibold">
+        <button
+          onClick={() => resetForm(false)}
+          className={`flex-1 py-2 transition-colors ${
+            !isNew
+              ? "bg-[#C8A84B] text-black"
+              : "bg-white/5 text-white/50 hover:bg-white/10"
+          }`}
+        >
+          Soy participante
+        </button>
+        <button
+          onClick={() => resetForm(true)}
+          className={`flex-1 py-2 transition-colors ${
+            isNew
+              ? "bg-[#C8A84B] text-black"
+              : "bg-white/5 text-white/50 hover:bg-white/10"
+          }`}
+        >
+          ✨ Nuevo participante
+        </button>
+      </div>
+
       <label className="block text-xs text-white/50 mb-1">Tu nombre</label>
-      <select
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="w-full mb-3 rounded-lg bg-white/5 border border-white/15 px-3 py-2 text-white"
-      >
-        <option value="">— Elige tu nombre —</option>
-        {familyNames.map((n) => (
-          <option key={n} value={n} className="bg-[#0d1117]">
-            {n}
-          </option>
-        ))}
-      </select>
+
+      {isNew ? (
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Escribe tu nombre…"
+          maxLength={40}
+          className="w-full mb-3 rounded-lg bg-white/5 border border-white/15 px-3 py-2 text-white placeholder:text-white/25"
+        />
+      ) : (
+        <select
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full mb-3 rounded-lg bg-white/5 border border-white/15 px-3 py-2 text-white"
+        >
+          <option value="">— Elige tu nombre —</option>
+          {familyNames.map((n) => (
+            <option key={n} value={n} className="bg-[#0d1117]">
+              {n}
+            </option>
+          ))}
+        </select>
+      )}
 
       <label className="block text-xs text-white/50 mb-1">PIN (4 dígitos)</label>
       <input
@@ -119,13 +273,23 @@ function LoginForm({ familyNames }: { familyNames: string[] }) {
 
       {error && <p className="text-red-400 text-sm mb-3 text-center">{error}</p>}
 
-      <button
-        onClick={submit}
-        disabled={pending || !name || pin.length !== 4}
-        className="w-full py-2.5 rounded-lg bg-[#C8A84B] text-black font-bold disabled:opacity-40 transition-opacity"
-      >
-        {pending ? "Entrando…" : "Entrar / Crear cuenta"}
-      </button>
+      {isNew ? (
+        <button
+          onClick={goToStep2}
+          disabled={!name.trim() || pin.length !== 4}
+          className="w-full py-2.5 rounded-lg bg-[#C8A84B] text-black font-bold disabled:opacity-40 transition-opacity"
+        >
+          Siguiente: elegir equipos →
+        </button>
+      ) : (
+        <button
+          onClick={submitExisting}
+          disabled={pending || !name || pin.length !== 4}
+          className="w-full py-2.5 rounded-lg bg-[#C8A84B] text-black font-bold disabled:opacity-40 transition-opacity"
+        >
+          {pending ? "Entrando…" : "Entrar / Crear cuenta"}
+        </button>
+      )}
     </div>
   );
 }

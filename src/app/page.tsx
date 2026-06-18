@@ -9,19 +9,29 @@ import {
 } from "@/lib/football";
 import { isBettingConfigured } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/session";
-import { settlePendingBets, getUserBets, getMoneyRanking, getAllMatchBets } from "@/lib/bets";
+import { settlePendingBets, getUserBets, getMoneyRanking, getAllMatchBets, getAllUserTeams } from "@/lib/bets";
 import type { Bet, MatchBetEntry, MoneyRankEntry, Prediction, SessionUser } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function HomePage() {
-  const data = participants as Record<string, string[]>;
+  const jsonData = participants as Record<string, string[]>;
 
   const [matches, groups] = await Promise.all([getAllMatches(), getGroupTables()]);
-  const standings = computeFamilyStandings(matches, data);
-  const familyTeams = [...new Set(Object.values(data).flat())];
-  const familyNames = Object.keys(data);
+
+  // Lista de todos los equipos del torneo (para el selector de nuevos participantes).
+  const allTeams = [...new Set(
+    matches
+      .filter((m) => m.home && m.away)
+      .flatMap((m) => [m.home!, m.away!])
+  )].sort();
+
+  // Combinar participants.json (originales) con selecciones guardadas en DB.
+  // Los del JSON se cargan primero; los de DB se fusionan sin sobreescribir.
+  let data: Record<string, string[]> = { ...jsonData };
+  const familyTeams = [...new Set(Object.values(jsonData).flat())];
+  const familyNames = Object.keys(jsonData);
 
   // ── Apuestas (solo si Supabase está configurado) ──
   let bettingConfigured = isBettingConfigured();
@@ -44,6 +54,12 @@ export default async function HomePage() {
       }
       await settlePendingBets(results);
 
+      // Fusionar selecciones de la DB con las del JSON (sin sobreescribir originales).
+      const dbTeams = await getAllUserTeams();
+      for (const [name, teams] of Object.entries(dbTeams)) {
+        if (!data[name]) data[name] = teams; // solo agrega si no está en JSON
+      }
+
       currentUser = await getCurrentUser();
       if (currentUser) userBets = await getUserBets(currentUser.id);
       [moneyRanking, allMatchBets] = await Promise.all([getMoneyRanking(), getAllMatchBets()]);
@@ -53,6 +69,9 @@ export default async function HomePage() {
       bettingConfigured = false;
     }
   }
+
+  const standings = computeFamilyStandings(matches, data);
+  const mergedFamilyNames = Object.keys(data);
 
   return (
     <main>
@@ -69,7 +88,8 @@ export default async function HomePage() {
         userBets={userBets}
         moneyRanking={moneyRanking}
         allMatchBets={allMatchBets}
-        familyNames={familyNames}
+        familyNames={mergedFamilyNames}
+        allTeams={allTeams}
       />
     </main>
   );

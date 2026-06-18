@@ -138,3 +138,30 @@ export async function getMoneyRanking(): Promise<MoneyRankEntry[]> {
     .limit(50);
   return (data ?? []).map((u) => ({ name: u.name, balance: u.balance }));
 }
+
+// ─── Selecciones de equipos (participantes registrados desde la UI) ──────────
+
+/** Guarda las selecciones de un usuario nuevo. Ignora duplicados (ON CONFLICT). */
+export async function saveUserTeams(userId: string, teams: string[]): Promise<void> {
+  const rows = teams.map((team_name) => ({ user_id: userId, team_name }));
+  await getSupabase().from("user_teams").upsert(rows, { onConflict: "user_id,team_name" });
+}
+
+/**
+ * Devuelve las selecciones de todos los participantes registrados via UI.
+ * El resultado es un Record<name, string[]> compatible con participants.json.
+ */
+export async function getAllUserTeams(): Promise<Record<string, string[]>> {
+  const { data } = await getSupabase()
+    .from("user_teams")
+    .select("team_name, users(name)");
+
+  const result: Record<string, string[]> = {};
+  for (const row of data ?? []) {
+    const name = (row.users as { name: string } | null)?.name;
+    if (!name) continue;
+    if (!result[name]) result[name] = [];
+    result[name].push(row.team_name);
+  }
+  return result;
+}

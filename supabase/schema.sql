@@ -29,8 +29,22 @@ create table if not exists public.bets (
 create index if not exists bets_user_idx   on public.bets(user_id);
 create index if not exists bets_status_idx on public.bets(status);
 
+-- Selecciones de equipos para participantes registrados desde la UI.
+-- Los del participants.json no necesitan esta tabla (están hardcodeados).
+-- Un usuario no puede escoger el mismo equipo dos veces (restricción única).
+create table if not exists public.user_teams (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.users(id) on delete cascade,
+  team_name  text not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, team_name)
+);
+
+create index if not exists user_teams_user_idx on public.user_teams(user_id);
+
 -- Seguridad: activamos RLS sin políticas, así NADIE puede leer/escribir con la
 -- clave pública (anon). La app accede solo desde el servidor con la service_role
 -- key, que ignora RLS. Esto mantiene los datos protegidos.
-alter table public.users enable row level security;
-alter table public.bets  enable row level security;
+alter table public.users      enable row level security;
+alter table public.bets       enable row level security;
+alter table public.user_teams enable row level security;
