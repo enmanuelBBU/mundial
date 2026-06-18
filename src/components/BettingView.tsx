@@ -317,7 +317,7 @@ function LoggedIn({
 }) {
   const router = useRouter();
   const [, startLogout] = useTransition();
-  const [section, setSection] = useState<"apostar" | "ranking" | "activas">("apostar");
+  const [section, setSection] = useState<"apostar" | "ranking" | "activas" | "todos">("apostar");
 
   const matchById = useMemo(() => {
     const m = new Map<number, ApiMatch>();
@@ -345,6 +345,7 @@ function LoggedIn({
 
   const SECTIONS = [
     { id: "apostar" as const, label: "Apostar", icon: "🎯" },
+    { id: "todos" as const, label: "Apuestas de todos", icon: "👥" },
     { id: "ranking" as const, label: "Ranking", icon: "💰" },
     { id: "activas" as const, label: "Mis apuestas", icon: "📋" },
   ];
@@ -403,6 +404,11 @@ function LoggedIn({
             </div>
           )}
         </div>
+      )}
+
+      {/* Apuestas de todos */}
+      {section === "todos" && (
+        <AllBetsSection allMatchBets={allMatchBets} matches={matches} />
       )}
 
       {/* Ranking */}
@@ -469,16 +475,16 @@ function BetCard({
   ];
 
   return (
-    <div className="glass-card border p-4">
-      <div className="flex items-center justify-between mb-3 text-base">
-        <div className="flex items-center gap-2 min-w-0">
-          <Crest src={m.homeCrest} size={22} />
-          <span className="truncate font-semibold text-white">{toSpanishName(m.home)}</span>
-          <span className="text-white/30 mx-1">vs</span>
-          <span className="truncate font-semibold text-white">{toSpanishName(m.away)}</span>
-          <Crest src={m.awayCrest} size={22} />
+    <div className="glass-card border p-5">
+      <div className="mb-4">
+        <div className="flex items-center gap-2 min-w-0 mb-1">
+          <Crest src={m.homeCrest} size={28} />
+          <span className="truncate font-bold text-white text-lg">{toSpanishName(m.home)}</span>
+          <span className="text-white/30 mx-1 text-lg">vs</span>
+          <span className="truncate font-bold text-white text-lg">{toSpanishName(m.away)}</span>
+          <Crest src={m.awayCrest} size={28} />
         </div>
-        <span className="text-xs text-white/40 whitespace-nowrap ml-2">
+        <span className="text-sm text-white/40">
           {stageShort(m.stage)} · {fmtDate(m.utcDate)} {fmtTime(m.utcDate)}
         </span>
       </div>
@@ -514,15 +520,15 @@ function BetCard({
             max={balance}
             value={amount}
             onChange={(e) => setAmount(Math.max(1, Math.floor(+e.target.value || 0)))}
-            className="w-20 rounded-lg bg-white/5 border border-white/15 px-2 py-1.5 text-white text-sm"
+            className="w-24 rounded-lg bg-white/5 border border-white/15 px-3 py-2.5 text-white text-base"
           />
-          <div className="grid grid-cols-3 gap-1.5 flex-1">
+          <div className="grid grid-cols-3 gap-2 flex-1">
             {options.map((o) => (
               <button
                 key={o.p}
                 onClick={() => setConfirm(o.p)}
                 disabled={pending || amount < 1 || amount > balance}
-                className="px-2 py-1.5 rounded-lg bg-white/5 hover:bg-[#C8A84B] hover:text-black text-white/80 text-xs font-semibold truncate disabled:opacity-40 transition-colors"
+                className="px-2 py-2.5 rounded-lg bg-white/5 hover:bg-[#C8A84B] hover:text-black text-white/80 text-sm font-semibold truncate disabled:opacity-40 transition-colors"
                 title={`Apostar a ${o.label}`}
               >
                 {o.label}
@@ -536,21 +542,21 @@ function BetCard({
 
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="mt-2.5 text-[10px] text-white/30 hover:text-white/60 transition-colors"
+        className="mt-3 text-sm text-white/40 hover:text-white/70 transition-colors"
       >
         {expanded ? "▲" : "▼"} Apuestas de todos ({matchBets.length})
       </button>
 
       {expanded && (
-        <div className="mt-2 space-y-1 border-t border-white/5 pt-2">
+        <div className="mt-3 space-y-2 border-t border-white/5 pt-3">
           {matchBets.length === 0 ? (
-            <p className="text-xs text-white/30 pl-1">Nadie apostó aún.</p>
+            <p className="text-sm text-white/30 pl-1">Nadie apostó aún.</p>
           ) : (
             matchBets.map((b, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs px-1">
-                <span className="font-semibold text-white/80">{b.userName}</span>
+              <div key={i} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg bg-white/3">
+                <span className="font-semibold text-white/90">{b.userName}</span>
                 <span className="text-white/20">·</span>
-                <span className="text-white/70 font-medium">
+                <span className="text-white/80 font-medium">
                   {b.prediction === "HOME"
                     ? toSpanishName(m.home)
                     : b.prediction === "AWAY"
@@ -559,7 +565,7 @@ function BetCard({
                 </span>
                 <span className="text-white/20">·</span>
                 <span className="text-white/50">{coins(b.amount)}</span>
-                <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full ${STATUS_BADGE[b.status].cls}`}>
+                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${STATUS_BADGE[b.status].cls}`}>
                   {STATUS_BADGE[b.status].txt}
                 </span>
               </div>
@@ -624,15 +630,15 @@ function MyBetRow({
       </button>
 
       {expanded && (
-        <div className="mt-2 space-y-1.5 border-t border-white/5 pt-2">
+        <div className="mt-3 space-y-2 border-t border-white/5 pt-3">
           {matchBets.length === 0 ? (
-            <p className="text-xs text-white/30 pl-1">Nadie apostó.</p>
+            <p className="text-sm text-white/30 pl-1">Nadie apostó.</p>
           ) : (
             matchBets.map((b, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs px-1">
-                <span className="font-semibold text-white/80">{b.userName}</span>
+              <div key={i} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg bg-white/3">
+                <span className="font-semibold text-white/90">{b.userName}</span>
                 <span className="text-white/20">·</span>
-                <span className="text-white/70 font-medium">
+                <span className="text-white/80 font-medium">
                   {b.prediction === "HOME"
                     ? toSpanishName(match?.home)
                     : b.prediction === "AWAY"
@@ -641,7 +647,7 @@ function MyBetRow({
                 </span>
                 <span className="text-white/20">·</span>
                 <span className="text-white/50">{coins(b.amount)}</span>
-                <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full ${STATUS_BADGE[b.status].cls}`}>
+                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${STATUS_BADGE[b.status].cls}`}>
                   {STATUS_BADGE[b.status].txt}
                 </span>
               </div>
@@ -649,6 +655,80 @@ function MyBetRow({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Apuestas de todos agrupadas por partido ────────────────────────────────
+function AllBetsSection({
+  allMatchBets,
+  matches,
+}: {
+  allMatchBets: MatchBetEntry[];
+  matches: ApiMatch[];
+}) {
+  const matchById = useMemo(() => {
+    const m = new Map<number, ApiMatch>();
+    matches.forEach((x) => m.set(x.id, x));
+    return m;
+  }, [matches]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<number, MatchBetEntry[]>();
+    for (const b of allMatchBets) {
+      if (!map.has(b.matchId)) map.set(b.matchId, []);
+      map.get(b.matchId)!.push(b);
+    }
+    return [...map.entries()]
+      .map(([matchId, bets]) => ({ match: matchById.get(matchId), bets }))
+      .sort((a, b) => {
+        if (!a.match || !b.match) return 0;
+        return +new Date(a.match.utcDate) - +new Date(b.match.utcDate);
+      });
+  }, [allMatchBets, matchById]);
+
+  if (grouped.length === 0) {
+    return <p className="text-white/40 text-sm">Nadie ha apostado aún.</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {grouped.map(({ match, bets }) => (
+        <div key={bets[0].matchId} className="glass-card border p-5">
+          {match && (
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <Crest src={match.homeCrest} size={24} />
+              <span className="font-bold text-white text-base">{toSpanishName(match.home)}</span>
+              <span className="text-white/30">vs</span>
+              <span className="font-bold text-white text-base">{toSpanishName(match.away)}</span>
+              <Crest src={match.awayCrest} size={24} />
+              <span className="ml-auto text-sm text-white/30 whitespace-nowrap">
+                {fmtDate(match.utcDate)} {fmtTime(match.utcDate)}
+              </span>
+            </div>
+          )}
+          <div className="space-y-2">
+            {bets.map((b, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm px-2 py-2 rounded-lg bg-white/3">
+                <span className="font-semibold text-white/90">{b.userName}</span>
+                <span className="text-white/20">·</span>
+                <span className="text-white/80 font-medium">
+                  {b.prediction === "HOME"
+                    ? toSpanishName(match?.home)
+                    : b.prediction === "AWAY"
+                    ? toSpanishName(match?.away)
+                    : "Empate"}
+                </span>
+                <span className="text-white/20">·</span>
+                <span className="text-white/50">{coins(b.amount)}</span>
+                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${STATUS_BADGE[b.status].cls}`}>
+                  {STATUS_BADGE[b.status].txt}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
