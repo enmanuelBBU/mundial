@@ -158,7 +158,8 @@ export async function getAllUserTeams(): Promise<Record<string, string[]>> {
 
   const result: Record<string, string[]> = {};
   for (const row of data ?? []) {
-    const name = (row.users as { name: string } | null)?.name;
+    const usersData = row.users as unknown as { name: string }[] | { name: string } | null;
+    const name = Array.isArray(usersData) ? usersData[0]?.name : usersData?.name;
     if (!name) continue;
     if (!result[name]) result[name] = [];
     result[name].push(row.team_name);
