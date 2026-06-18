@@ -115,7 +115,7 @@ function MatchRow({ m }: { m: ApiMatch }) {
       {/* Local */}
       <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
         <span
-          className={`truncate text-sm ${homeWon ? "font-bold text-white" : "text-white/70"}`}
+          className={`truncate text-sm ${homeWon ? "font-bold text-green-400" : "text-white/70"}`}
         >
           {homeName}
         </span>
@@ -139,7 +139,7 @@ function MatchRow({ m }: { m: ApiMatch }) {
       <div className="flex-1 flex items-center gap-2 min-w-0">
         <Crest src={m.awayCrest} size={20} />
         <span
-          className={`truncate text-sm ${awayWon ? "font-bold text-white" : "text-white/70"}`}
+          className={`truncate text-sm ${awayWon ? "font-bold text-green-400" : "text-white/70"}`}
         >
           {awayName}
         </span>

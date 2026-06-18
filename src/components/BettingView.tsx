@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { ApiMatch, Bet, MoneyRankEntry, Prediction, SessionUser } from "@/lib/types";
+import type { ApiMatch, Bet, MatchBetEntry, MoneyRankEntry, Prediction, SessionUser } from "@/lib/types";
 import { toSpanishName } from "@/lib/teamMapping";
 import { fmtDate, fmtTime, stageShort } from "@/lib/display";
 import { loginAction, logoutAction, placeBetAction } from "@/lib/actions";
@@ -27,6 +27,7 @@ interface Props {
   matches: ApiMatch[];
   userBets: Bet[];
   ranking: MoneyRankEntry[];
+  allMatchBets: MatchBetEntry[];
   familyNames: string[];
 }
 
@@ -36,6 +37,7 @@ export default function BettingView({
   matches,
   userBets,
   ranking,
+  allMatchBets,
   familyNames,
 }: Props) {
   if (!configured) {
@@ -53,7 +55,7 @@ export default function BettingView({
   return (
     <div className="animate-slide-in space-y-8">
       {user ? (
-        <LoggedIn user={user} matches={matches} userBets={userBets} />
+        <LoggedIn user={user} matches={matches} userBets={userBets} allMatchBets={allMatchBets} />
       ) : (
         <LoginForm familyNames={familyNames} />
       )}
@@ -133,10 +135,12 @@ function LoggedIn({
   user,
   matches,
   userBets,
+  allMatchBets,
 }: {
   user: SessionUser;
   matches: ApiMatch[];
   userBets: Bet[];
+  allMatchBets: MatchBetEntry[];
 }) {
   const router = useRouter();
   const [, startLogout] = useTransition();
@@ -149,7 +153,6 @@ function LoggedIn({
 
   const betMatchIds = useMemo(() => new Set(userBets.map((b) => b.matchId)), [userBets]);
 
-  // Partidos apostables: futuros, con equipos definidos, sin apuesta previa.
   const bettable = useMemo(
     () =>
       matches
@@ -201,7 +204,7 @@ function LoggedIn({
         ) : (
           <div className="space-y-3">
             {bettable.map((m) => (
-              <BetCard key={m.id} m={m} balance={user.balance} />
+              <BetCard key={m.id} m={m} balance={user.balance} allMatchBets={allMatchBets} />
             ))}
           </div>
         )}
@@ -215,7 +218,12 @@ function LoggedIn({
         ) : (
           <div className="space-y-2">
             {userBets.map((b) => (
-              <MyBetRow key={b.id} bet={b} match={matchById.get(b.matchId)} />
+              <MyBetRow
+                key={b.id}
+                bet={b}
+                match={matchById.get(b.matchId)}
+                allMatchBets={allMatchBets}
+              />
             ))}
           </div>
         )}
@@ -224,14 +232,30 @@ function LoggedIn({
   );
 }
 
-function BetCard({ m, balance }: { m: ApiMatch; balance: number }) {
+function BetCard({
+  m,
+  balance,
+  allMatchBets,
+}: {
+  m: ApiMatch;
+  balance: number;
+  allMatchBets: MatchBetEntry[];
+}) {
   const router = useRouter();
   const [amount, setAmount] = useState(100);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [confirm, setConfirm] = useState<Prediction | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  const matchBets = useMemo(
+    () => allMatchBets.filter((b) => b.matchId === m.id),
+    [allMatchBets, m.id]
+  );
 
   const bet = (prediction: Prediction) => {
     setError(null);
+    setConfirm(null);
     start(async () => {
       const res = await placeBetAction(m.id, prediction, amount);
       if (res.ok) router.refresh();
@@ -260,35 +284,98 @@ function BetCard({ m, balance }: { m: ApiMatch; balance: number }) {
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="number"
-          min={1}
-          max={balance}
-          value={amount}
-          onChange={(e) => setAmount(Math.max(1, Math.floor(+e.target.value || 0)))}
-          className="w-20 rounded-lg bg-white/5 border border-white/15 px-2 py-1.5 text-white text-sm"
-        />
-        <div className="grid grid-cols-3 gap-1.5 flex-1">
-          {options.map((o) => (
+      {confirm ? (
+        <div className="flex items-center gap-2 flex-wrap py-1">
+          <p className="text-xs text-white/70 flex-1 min-w-0">
+            ¿Apostar {coins(amount)} a{" "}
+            <b className="text-white">{options.find((o) => o.p === confirm)?.label}</b>?
+          </p>
+          <div className="flex gap-2 flex-shrink-0">
             <button
-              key={o.p}
-              onClick={() => bet(o.p)}
-              disabled={pending || amount < 1 || amount > balance}
-              className="px-2 py-1.5 rounded-lg bg-white/5 hover:bg-[#C8A84B] hover:text-black text-white/80 text-xs font-semibold truncate disabled:opacity-40 transition-colors"
-              title={`Apostar a ${o.label}`}
+              onClick={() => bet(confirm)}
+              disabled={pending}
+              className="px-3 py-1.5 rounded-lg bg-[#C8A84B] text-black text-xs font-bold disabled:opacity-40 transition-opacity"
             >
-              {o.label}
+              {pending ? "…" : "Confirmar"}
             </button>
-          ))}
+            <button
+              onClick={() => setConfirm(null)}
+              disabled={pending}
+              className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70 text-xs hover:bg-white/15 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={1}
+            max={balance}
+            value={amount}
+            onChange={(e) => setAmount(Math.max(1, Math.floor(+e.target.value || 0)))}
+            className="w-20 rounded-lg bg-white/5 border border-white/15 px-2 py-1.5 text-white text-sm"
+          />
+          <div className="grid grid-cols-3 gap-1.5 flex-1">
+            {options.map((o) => (
+              <button
+                key={o.p}
+                onClick={() => setConfirm(o.p)}
+                disabled={pending || amount < 1 || amount > balance}
+                className="px-2 py-1.5 rounded-lg bg-white/5 hover:bg-[#C8A84B] hover:text-black text-white/80 text-xs font-semibold truncate disabled:opacity-40 transition-colors"
+                title={`Apostar a ${o.label}`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="mt-2.5 text-[10px] text-white/30 hover:text-white/60 transition-colors"
+      >
+        {expanded ? "▲" : "▼"} Apuestas de todos ({matchBets.length})
+      </button>
+
+      {expanded && (
+        <div className="mt-2 space-y-1 border-t border-white/5 pt-2">
+          {matchBets.length === 0 ? (
+            <p className="text-[10px] text-white/30 pl-1">Nadie apostó aún.</p>
+          ) : (
+            matchBets.map((b, i) => (
+              <div key={i} className="flex items-center gap-2 text-[10px] px-1">
+                <span className="font-semibold text-white/70">{b.userName}</span>
+                <span className="text-white/20">·</span>
+                <span className="text-white/50">{PRED_LABEL[b.prediction]}</span>
+                <span className="text-white/20">·</span>
+                <span className="text-white/40">{coins(b.amount)}</span>
+                <span className={`ml-auto text-[9px] px-1.5 py-0.5 rounded-full ${STATUS_BADGE[b.status].cls}`}>
+                  {STATUS_BADGE[b.status].txt}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function MyBetRow({ bet, match }: { bet: Bet; match: ApiMatch | undefined }) {
+function MyBetRow({
+  bet,
+  match,
+  allMatchBets,
+}: {
+  bet: Bet;
+  match: ApiMatch | undefined;
+  allMatchBets: MatchBetEntry[];
+}) {
+  const [expanded, setExpanded] = useState(false);
   const badge = STATUS_BADGE[bet.status];
   const pick =
     bet.prediction === "HOME"
@@ -297,25 +384,60 @@ function MyBetRow({ bet, match }: { bet: Bet; match: ApiMatch | undefined }) {
       ? toSpanishName(match?.away)
       : "Empate";
 
+  const matchBets = useMemo(
+    () => allMatchBets.filter((b) => b.matchId === bet.matchId),
+    [allMatchBets, bet.matchId]
+  );
+
   return (
-    <div className="glass-card border px-4 py-2.5 flex items-center gap-3 text-sm">
-      <div className="flex-1 min-w-0">
-        <p className="text-white/80 truncate">
-          {match ? `${toSpanishName(match.home)} vs ${toSpanishName(match.away)}` : "Partido"}
-        </p>
-        <p className="text-xs text-white/40">
-          Apostaste {coins(bet.amount)} a <b>{PRED_LABEL[bet.prediction]}</b> ({pick})
-        </p>
+    <div className="glass-card border px-4 py-2.5 text-sm">
+      <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-white/80 truncate">
+            {match ? `${toSpanishName(match.home)} vs ${toSpanishName(match.away)}` : "Partido"}
+          </p>
+          <p className="text-xs text-white/40">
+            Apostaste {coins(bet.amount)} a <b>{PRED_LABEL[bet.prediction]}</b> ({pick})
+          </p>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.txt}</span>
+          {bet.status === "WON" && (
+            <p className="text-green-400 text-xs font-bold mt-1">+{coins(bet.payout)}</p>
+          )}
+          {bet.status === "LOST" && (
+            <p className="text-red-400 text-xs mt-1">-{coins(bet.amount)}</p>
+          )}
+        </div>
       </div>
-      <div className="text-right flex-shrink-0">
-        <span className={`text-[10px] px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.txt}</span>
-        {bet.status === "WON" && (
-          <p className="text-green-400 text-xs font-bold mt-1">+{coins(bet.payout)}</p>
-        )}
-        {bet.status === "LOST" && (
-          <p className="text-red-400 text-xs mt-1">-{coins(bet.amount)}</p>
-        )}
-      </div>
+
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="mt-1.5 text-[10px] text-white/30 hover:text-white/60 transition-colors"
+      >
+        {expanded ? "▲" : "▼"} Apuestas de todos ({matchBets.length})
+      </button>
+
+      {expanded && (
+        <div className="mt-2 space-y-1 border-t border-white/5 pt-2">
+          {matchBets.length === 0 ? (
+            <p className="text-[10px] text-white/30 pl-1">Nadie apostó.</p>
+          ) : (
+            matchBets.map((b, i) => (
+              <div key={i} className="flex items-center gap-2 text-[10px] px-1">
+                <span className="font-semibold text-white/70">{b.userName}</span>
+                <span className="text-white/20">·</span>
+                <span className="text-white/50">{PRED_LABEL[b.prediction]}</span>
+                <span className="text-white/20">·</span>
+                <span className="text-white/40">{coins(b.amount)}</span>
+                <span className={`ml-auto text-[9px] px-1.5 py-0.5 rounded-full ${STATUS_BADGE[b.status].cls}`}>
+                  {STATUS_BADGE[b.status].txt}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import "server-only";
 import { getSupabase } from "./supabase";
-import type { Bet, BetStatus, MoneyRankEntry, Prediction, SessionUser } from "./types";
+import type { Bet, BetStatus, MatchBetEntry, MoneyRankEntry, Prediction, SessionUser } from "./types";
 
 export const START_BALANCE = 1000;
 
@@ -115,6 +115,19 @@ export async function settlePendingBets(results: Map<number, Prediction>) {
       if (u) await sb.from("users").update({ balance: u.balance + payout }).eq("id", bet.user_id);
     }
   }
+}
+
+export async function getAllMatchBets(): Promise<MatchBetEntry[]> {
+  const { data } = await getSupabase()
+    .from("bets")
+    .select("match_id, prediction, amount, status, users(name)");
+  return (data ?? []).map((b: any) => ({
+    matchId: b.match_id,
+    userName: (b.users as { name: string } | null)?.name ?? "?",
+    prediction: b.prediction as Prediction,
+    amount: b.amount,
+    status: b.status as BetStatus,
+  }));
 }
 
 export async function getMoneyRanking(): Promise<MoneyRankEntry[]> {

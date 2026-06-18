@@ -6,6 +6,7 @@ import type {
   ApiMatch,
   Bet,
   GroupTable,
+  MatchBetEntry,
   MoneyRankEntry,
   ParticipantResult,
   SessionUser,
@@ -37,6 +38,7 @@ interface Props {
   currentUser: SessionUser | null;
   userBets: Bet[];
   moneyRanking: MoneyRankEntry[];
+  allMatchBets: MatchBetEntry[];
   familyNames: string[];
 }
 
@@ -51,6 +53,7 @@ export default function Dashboard({
   currentUser,
   userBets,
   moneyRanking,
+  allMatchBets,
   familyNames,
 }: Props) {
   const [tab, setTab] = useState<Tab>("ranking");
@@ -127,6 +130,7 @@ export default function Dashboard({
           matches={matches}
           userBets={userBets}
           ranking={moneyRanking}
+          allMatchBets={allMatchBets}
           familyNames={familyNames}
         />
       )}

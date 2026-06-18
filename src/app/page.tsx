@@ -9,8 +9,8 @@ import {
 } from "@/lib/football";
 import { isBettingConfigured } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/session";
-import { settlePendingBets, getUserBets, getMoneyRanking } from "@/lib/bets";
-import type { Bet, MoneyRankEntry, Prediction, SessionUser } from "@/lib/types";
+import { settlePendingBets, getUserBets, getMoneyRanking, getAllMatchBets } from "@/lib/bets";
+import type { Bet, MatchBetEntry, MoneyRankEntry, Prediction, SessionUser } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -28,6 +28,7 @@ export default async function HomePage() {
   let currentUser: SessionUser | null = null;
   let userBets: Bet[] = [];
   let moneyRanking: MoneyRankEntry[] = [];
+  let allMatchBets: MatchBetEntry[] = [];
 
   if (bettingConfigured) {
     try {
@@ -45,7 +46,7 @@ export default async function HomePage() {
 
       currentUser = await getCurrentUser();
       if (currentUser) userBets = await getUserBets(currentUser.id);
-      moneyRanking = await getMoneyRanking();
+      [moneyRanking, allMatchBets] = await Promise.all([getMoneyRanking(), getAllMatchBets()]);
     } catch (e) {
       // Si algo falla con la base de datos, el resto de la app sigue funcionando.
       console.error("Error en módulo de apuestas:", e);
@@ -67,6 +68,7 @@ export default async function HomePage() {
         currentUser={currentUser}
         userBets={userBets}
         moneyRanking={moneyRanking}
+        allMatchBets={allMatchBets}
         familyNames={familyNames}
       />
     </main>

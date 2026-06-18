@@ -81,6 +81,14 @@ export interface MoneyRankEntry {
   balance: number;
 }
 
+export interface MatchBetEntry {
+  matchId: number;
+  userName: string;
+  prediction: Prediction;
+  amount: number;
+  status: BetStatus;
+}
+
 // Resultado estándar de las acciones de servidor (login, apostar…).
 export interface ActionResult {
   ok: boolean;
