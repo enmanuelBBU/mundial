@@ -10,7 +10,7 @@ import {
   setSessionCookie,
   clearSessionCookie,
 } from "./session";
-import { createUser, getUserRawByName, placeBet, saveUserTeams } from "./bets";
+import { createUser, getUserRawByName, placeBet, saveUserTeams, updateBet } from "./bets";
 import type { ActionResult, Prediction } from "./types";
 
 const PIN_RE = /^\d{4}$/;
@@ -49,6 +49,36 @@ export async function logoutAction(): Promise<ActionResult> {
   await clearSessionCookie();
   revalidatePath("/");
   return { ok: true };
+}
+
+export async function editBetAction(
+  betId: string,
+  matchId: number,
+  prediction: Prediction,
+  amount: number
+): Promise<ActionResult> {
+  if (!isBettingConfigured())
+    return { ok: false, error: "Las apuestas no están configuradas." };
+
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Debes iniciar sesión para editar." };
+
+  if (!["HOME", "DRAW", "AWAY"].includes(prediction))
+    return { ok: false, error: "Predicción inválida." };
+  amount = Math.floor(Number(amount));
+  if (!Number.isFinite(amount) || amount < 1) return { ok: false, error: "Monto inválido." };
+
+  const matches = await getAllMatches();
+  const match = matches.find((m) => m.id === matchId);
+  if (!match) return { ok: false, error: "Partido no encontrado." };
+  if (["FINISHED", "IN_PLAY", "PAUSED"].includes(match.status))
+    return { ok: false, error: "Ese partido ya empezó." };
+  if (new Date(match.utcDate).getTime() <= Date.now())
+    return { ok: false, error: "Ese partido ya empezó." };
+
+  const res = await updateBet(betId, user.id, prediction, amount);
+  if (res.ok) revalidatePath("/");
+  return res;
 }
 
 export async function placeBetAction(

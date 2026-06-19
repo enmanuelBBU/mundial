@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ApiMatch, Bet, MatchBetEntry, MoneyRankEntry, Prediction, SessionUser } from "@/lib/types";
 import { toSpanishName } from "@/lib/teamMapping";
 import { fmtDate, fmtTime, stageShort } from "@/lib/display";
-import { loginAction, logoutAction, placeBetAction } from "@/lib/actions";
+import { loginAction, logoutAction, placeBetAction, editBetAction } from "@/lib/actions";
 import Crest from "./Crest";
 
 const PRED_LABEL: Record<Prediction, string> = {
@@ -427,6 +427,7 @@ function LoggedIn({
                   bet={b}
                   match={matchById.get(b.matchId)}
                   allMatchBets={allMatchBets}
+                  userBalance={user.balance}
                 />
               ))}
             </div>
@@ -581,12 +582,21 @@ function MyBetRow({
   bet,
   match,
   allMatchBets,
+  userBalance,
 }: {
   bet: Bet;
   match: ApiMatch | undefined;
   allMatchBets: MatchBetEntry[];
+  userBalance: number;
 }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editAmount, setEditAmount] = useState(bet.amount);
+  const [editConfirm, setEditConfirm] = useState<Prediction | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
   const badge = STATUS_BADGE[bet.status];
   const pick =
     bet.prediction === "HOME"
@@ -594,6 +604,30 @@ function MyBetRow({
       : bet.prediction === "AWAY"
       ? toSpanishName(match?.away)
       : "Empate";
+
+  const canEdit =
+    bet.status === "PENDING" &&
+    match != null &&
+    !["FINISHED", "IN_PLAY", "PAUSED"].includes(match.status) &&
+    new Date(match.utcDate).getTime() > Date.now();
+
+  const maxAmount = userBalance + bet.amount;
+
+  const saveEdit = (prediction: Prediction) => {
+    setEditError(null);
+    setEditConfirm(null);
+    start(async () => {
+      const res = await editBetAction(bet.id, bet.matchId, prediction, editAmount);
+      if (res.ok) { setEditing(false); router.refresh(); }
+      else setEditError(res.error ?? "Error al editar.");
+    });
+  };
+
+  const editOptions: { p: Prediction; label: string }[] = [
+    { p: "HOME", label: toSpanishName(match?.home) },
+    { p: "DRAW", label: "Empate" },
+    { p: "AWAY", label: toSpanishName(match?.away) },
+  ];
 
   const matchBets = useMemo(
     () => allMatchBets.filter((b) => b.matchId === bet.matchId),
@@ -611,16 +645,87 @@ function MyBetRow({
             Apostaste {coins(bet.amount)} a <b className="text-white/80">{pick}</b>
           </p>
         </div>
-        <div className="text-right flex-shrink-0">
+        <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
           <span className={`text-xs px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.txt}</span>
           {bet.status === "WON" && (
-            <p className="text-green-400 text-sm font-bold mt-1">+{coins(bet.payout)}</p>
+            <p className="text-green-400 text-sm font-bold">+{coins(bet.payout)}</p>
           )}
           {bet.status === "LOST" && (
-            <p className="text-red-400 text-sm mt-1">-{coins(bet.amount)}</p>
+            <p className="text-red-400 text-sm">-{coins(bet.amount)}</p>
+          )}
+          {canEdit && !editing && (
+            <button
+              onClick={() => { setEditing(true); setEditAmount(bet.amount); setEditConfirm(null); setEditError(null); }}
+              className="text-xs text-[#C8A84B] hover:text-[#e8c76b] transition-colors"
+            >
+              ✏️ Editar
+            </button>
           )}
         </div>
       </div>
+
+      {editing && (
+        <div className="mt-3 border-t border-white/10 pt-3">
+          {editConfirm ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-xs text-white/70 flex-1 min-w-0">
+                ¿Cambiar a {coins(editAmount)} a <b className="text-white">{editOptions.find((o) => o.p === editConfirm)?.label}</b>?
+              </p>
+              <div className="flex gap-2 flex-shrink-0">
+                <button
+                  onClick={() => saveEdit(editConfirm)}
+                  disabled={pending}
+                  className="px-3 py-1.5 rounded-lg bg-[#C8A84B] text-black text-xs font-bold disabled:opacity-40"
+                >
+                  {pending ? "…" : "Confirmar"}
+                </button>
+                <button
+                  onClick={() => setEditConfirm(null)}
+                  disabled={pending}
+                  className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70 text-xs hover:bg-white/15"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={maxAmount}
+                value={editAmount}
+                onChange={(e) => setEditAmount(Math.max(1, Math.floor(+e.target.value || 0)))}
+                className="w-24 rounded-lg bg-white/5 border border-white/15 px-3 py-2 text-white text-base"
+              />
+              <div className="grid grid-cols-3 gap-2 flex-1">
+                {editOptions.map((o) => (
+                  <button
+                    key={o.p}
+                    onClick={() => setEditConfirm(o.p)}
+                    disabled={pending || editAmount < 1 || editAmount > maxAmount}
+                    className={`px-2 py-2 rounded-lg text-sm font-semibold truncate disabled:opacity-40 transition-colors ${
+                      o.p === bet.prediction
+                        ? "bg-[#C8A84B]/30 text-[#C8A84B] border border-[#C8A84B]/50"
+                        : "bg-white/5 hover:bg-[#C8A84B] hover:text-black text-white/80"
+                    }`}
+                    title={`Cambiar a ${o.label}`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setEditing(false)}
+                className="text-xs text-white/40 hover:text-white/70 flex-shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          {editError && <p className="text-red-400 text-xs mt-2">{editError}</p>}
+        </div>
+      )}
 
       <button
         onClick={() => setExpanded((v) => !v)}

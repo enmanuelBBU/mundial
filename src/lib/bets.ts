@@ -67,6 +67,42 @@ export async function placeBet(
   return { ok: true };
 }
 
+export async function updateBet(
+  betId: string,
+  userId: string,
+  newPrediction: Prediction,
+  newAmount: number
+): Promise<{ ok: boolean; error?: string }> {
+  const sb = getSupabase();
+
+  const { data: bet } = await sb
+    .from("bets")
+    .select("id,user_id,amount,status")
+    .eq("id", betId)
+    .eq("user_id", userId)
+    .eq("status", "PENDING")
+    .maybeSingle();
+
+  if (!bet) return { ok: false, error: "Apuesta no encontrada o ya no editable." };
+
+  const user = await getUserById(userId);
+  if (!user) return { ok: false, error: "Usuario no encontrado." };
+
+  const newBalance = user.balance + bet.amount - newAmount;
+  if (newBalance < 0) return { ok: false, error: "Saldo insuficiente." };
+
+  const { error: updErr } = await sb
+    .from("bets")
+    .update({ prediction: newPrediction, amount: newAmount })
+    .eq("id", betId)
+    .eq("status", "PENDING");
+
+  if (updErr) return { ok: false, error: "No se pudo actualizar la apuesta." };
+
+  await sb.from("users").update({ balance: newBalance }).eq("id", userId);
+  return { ok: true };
+}
+
 export async function getUserBets(userId: string): Promise<Bet[]> {
   const { data } = await getSupabase()
     .from("bets")
