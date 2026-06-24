@@ -7,8 +7,8 @@ export const TEAM_MAP: Record<string, string> = {
   "Argentina":      "Argentina",      // ★
   "Austria":        "Austria",        // ★
   "Colombia":       "Colombia",       // ★
-  "Corea del Sur":  "Korea Republic", // ★
-  "Corea":          "Korea Republic", // alias (filtrado en REVERSE_MAP)
+  "Corea del Sur":  "South Korea",     // ★
+  "Corea":          "South Korea",     // alias (filtrado en REVERSE_MAP)
   "España":         "Spain",          // ★
   "Francia":        "France",         // ★
   "Inglaterra":     "England",        // ★

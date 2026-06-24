@@ -53,6 +53,9 @@ export async function getAllMatches(): Promise<ApiMatch[]> {
       duration: m.score?.duration ?? null,
     }));
     matchesCache = { data: matches, ts: Date.now() };
+    // DEBUG: muestra los nombres únicos que devuelve el API para identificar discrepancias
+    const uniqueNames = [...new Set(matches.flatMap((m) => [m.home, m.away]).filter(Boolean))].sort();
+    console.log("[DEBUG API team names]", uniqueNames);
     return matches;
   } catch (e) {
     console.error(e);
@@ -195,7 +198,7 @@ const MOCK_MATCHES: ApiMatch[] = [
   fin(3, "GROUP_STAGE", "Group A", 3, "2026-06-19T18:00:00Z", "Austria", "Argentina", 0, 2),
   fin(4, "GROUP_STAGE", "Group B", 1, "2026-06-12T18:00:00Z", "France", "Mexico", 2, 1),
   fin(5, "GROUP_STAGE", "Group B", 2, "2026-06-16T18:00:00Z", "France", "Uzbekistan", 1, 1),
-  fin(6, "GROUP_STAGE", "Group B", 3, "2026-06-20T18:00:00Z", "France", "Korea Republic", 3, 0),
+  fin(6, "GROUP_STAGE", "Group B", 3, "2026-06-20T18:00:00Z", "France", "South Korea", 3, 0),
   fin(7, "GROUP_STAGE", "Group C", 1, "2026-06-12T21:00:00Z", "Spain", "Netherlands", 2, 0),
   fin(8, "GROUP_STAGE", "Group C", 2, "2026-06-16T21:00:00Z", "Spain", "Colombia", 1, 1),
   fin(9, "GROUP_STAGE", "Group C", 3, "2026-06-20T21:00:00Z", "England", "Spain", 1, 2),
@@ -249,7 +252,7 @@ const MOCK_GROUPS: GroupTable[] = [
       row(1, "France", 3, 2, 1, 0),
       row(2, "Mexico", 3, 1, 1, 1),
       row(3, "Uzbekistan", 3, 0, 2, 1),
-      row(4, "Korea Republic", 3, 0, 2, 1),
+      row(4, "South Korea", 3, 0, 2, 1),
     ],
   },
   {
