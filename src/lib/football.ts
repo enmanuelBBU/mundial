@@ -53,9 +53,6 @@ export async function getAllMatches(): Promise<ApiMatch[]> {
       duration: m.score?.duration ?? null,
     }));
     matchesCache = { data: matches, ts: Date.now() };
-    // DEBUG: muestra los nombres únicos que devuelve el API para identificar discrepancias
-    const uniqueNames = [...new Set(matches.flatMap((m) => [m.home, m.away]).filter(Boolean))].sort();
-    console.log("[DEBUG API team names]", uniqueNames);
     return matches;
   } catch (e) {
     console.error(e);

@@ -49,7 +49,7 @@ export const TEAM_MAP: Record<string, string> = {
   "Serbia":         "Serbia",
   "Dinamarca":      "Denmark",
   "Escocia":        "Scotland",
-  "Turquía":        "Türkiye",
+  "Turquía":        "Turkey",
   "Georgia":        "Georgia",
   "Eslovenia":      "Slovenia",
   "Chequia":        "Czechia",
@@ -63,6 +63,7 @@ export const TEAM_MAP: Record<string, string> = {
   "Irlanda":        "Republic of Ireland",
   "Grecia":         "Greece",
   "Noruega":        "Norway",
+  "Suecia":         "Sweden",
 
   // ── AFC ──────────────────────────────────────────────────────────────────
   "Arabia Saudita": "Saudi Arabia",
@@ -80,15 +81,18 @@ export const TEAM_MAP: Record<string, string> = {
   "Marruecos":      "Morocco",
   "Nigeria":        "Nigeria",
   "Camerún":        "Cameroon",
-  "Costa de Marfil": "Côte d'Ivoire",
+  "Costa de Marfil": "Ivory Coast",
   "Egipto":         "Egypt",
   "Ghana":          "Ghana",
   "Argelia":        "Algeria",
   "Túnez":          "Tunisia",
   "Mali":           "Mali",
   "Sudáfrica":      "South Africa",
-  "Cabo Verde":     "Cape Verde",
-  "Rep. Dem. del Congo": "DR Congo",
+  "Cabo Verde":     "Cape Verde Islands",
+  "Rep. Dem. del Congo": "Congo DR",
+  "Bosnia-Herzegovina": "Bosnia-Herzegovina",
+  "Curazao":        "Curaçao",
+  "Haití":          "Haiti",
   "Zambia":         "Zambia",
   "Tanzania":       "Tanzania",
 
@@ -176,6 +180,7 @@ export const TEAM_FLAGS: Record<string, string> = {
   "Irlanda":        "🇮🇪",
   "Grecia":         "🇬🇷",
   "Noruega":        "🇳🇴",
+  "Suecia":         "🇸🇪",
 
   // ── AFC ──────────────────────────────────────────────────────────────────
   "Arabia Saudita": "🇸🇦",
@@ -202,6 +207,9 @@ export const TEAM_FLAGS: Record<string, string> = {
   "Sudáfrica":      "🇿🇦",
   "Cabo Verde":     "🇨🇻",
   "Rep. Dem. del Congo": "🇨🇩",
+  "Bosnia-Herzegovina": "🇧🇦",
+  "Curazao":        "🇨🇼",
+  "Haití":          "🇭🇹",
   "Zambia":         "🇿🇲",
   "Tanzania":       "🇹🇿",
 
