@@ -10,7 +10,7 @@ import {
   setSessionCookie,
   clearSessionCookie,
 } from "./session";
-import { createUser, getUserRawByName, placeBet, saveUserTeams, updateBet } from "./bets";
+import { createUser, getUserRawByName, placeBet, saveUserTeams, transferCoins, updateBet } from "./bets";
 import type { ActionResult, Prediction } from "./types";
 
 const PIN_RE = /^\d{4}$/;
@@ -77,6 +77,25 @@ export async function editBetAction(
     return { ok: false, error: "Ese partido ya empezó." };
 
   const res = await updateBet(betId, user.id, prediction, amount);
+  if (res.ok) revalidatePath("/");
+  return res;
+}
+
+export async function transferAction(
+  toUserId: string,
+  amount: number
+): Promise<ActionResult> {
+  if (!isBettingConfigured())
+    return { ok: false, error: "Las apuestas no están configuradas." };
+
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Debes iniciar sesión para transferir." };
+
+  amount = Math.floor(Number(amount));
+  if (!Number.isFinite(amount) || amount < 1) return { ok: false, error: "Monto inválido." };
+  if (!toUserId) return { ok: false, error: "Selecciona un destinatario." };
+
+  const res = await transferCoins(user.id, toUserId, amount);
   if (res.ok) revalidatePath("/");
   return res;
 }

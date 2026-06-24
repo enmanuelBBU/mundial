@@ -89,6 +89,12 @@ export interface MatchBetEntry {
   status: BetStatus;
 }
 
+export interface UserListEntry {
+  id: string;
+  name: string;
+  balance: number;
+}
+
 // Resultado estándar de las acciones de servidor (login, apostar…).
 export interface ActionResult {
   ok: boolean;

@@ -1,6 +1,6 @@
 import "server-only";
 import { getSupabase } from "./supabase";
-import type { Bet, BetStatus, MatchBetEntry, MoneyRankEntry, Prediction, SessionUser } from "./types";
+import type { Bet, BetStatus, MatchBetEntry, MoneyRankEntry, Prediction, SessionUser, UserListEntry } from "./types";
 
 export const START_BALANCE = 1000;
 
@@ -173,6 +173,42 @@ export async function getMoneyRanking(): Promise<MoneyRankEntry[]> {
     .order("balance", { ascending: false })
     .limit(50);
   return (data ?? []).map((u) => ({ name: u.name, balance: u.balance }));
+}
+
+// ─── Lista de usuarios y transferencias ─────────────────────────────────────
+
+export async function getUserList(): Promise<UserListEntry[]> {
+  const { data } = await getSupabase()
+    .from("users")
+    .select("id,name,balance")
+    .order("name");
+  return (data ?? []).map((u) => ({ id: u.id, name: u.name, balance: u.balance }));
+}
+
+export async function transferCoins(
+  fromUserId: string,
+  toUserId: string,
+  amount: number
+): Promise<{ ok: boolean; error?: string }> {
+  const sb = getSupabase();
+
+  const [from, to] = await Promise.all([getUserById(fromUserId), getUserById(toUserId)]);
+  if (!from) return { ok: false, error: "Tu cuenta no se encontró." };
+  if (!to) return { ok: false, error: "Destinatario no encontrado." };
+  if (fromUserId === toUserId) return { ok: false, error: "No puedes transferirte a ti mismo." };
+  if (amount > from.balance) return { ok: false, error: "Saldo insuficiente." };
+
+  const { error: e1 } = await sb
+    .from("users")
+    .update({ balance: from.balance - amount })
+    .eq("id", fromUserId);
+  if (e1) return { ok: false, error: "Error al procesar la transferencia." };
+
+  await sb.from("users").update({ balance: to.balance + amount }).eq("id", toUserId);
+
+  await sb.from("transfers").insert({ from_user_id: fromUserId, to_user_id: toUserId, amount });
+
+  return { ok: true };
 }
 
 // ─── Selecciones de equipos (participantes registrados desde la UI) ──────────

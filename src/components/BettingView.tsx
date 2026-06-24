@@ -2,10 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { ApiMatch, Bet, MatchBetEntry, MoneyRankEntry, Prediction, SessionUser } from "@/lib/types";
+import type { ApiMatch, Bet, MatchBetEntry, MoneyRankEntry, Prediction, SessionUser, UserListEntry } from "@/lib/types";
 import { toSpanishName } from "@/lib/teamMapping";
 import { fmtDate, fmtTime, stageShort } from "@/lib/display";
-import { loginAction, logoutAction, placeBetAction, editBetAction } from "@/lib/actions";
+import { loginAction, logoutAction, placeBetAction, editBetAction, transferAction } from "@/lib/actions";
 import Crest from "./Crest";
 
 const PRED_LABEL: Record<Prediction, string> = {
@@ -21,6 +21,31 @@ const STATUS_BADGE: Record<string, { txt: string; cls: string }> = {
 
 const coins = (n: number) => `${n.toLocaleString("es-VE")} 🪙`;
 
+// Input numérico amigable: texto para evitar el comportamiento raro de type=number,
+// selecciona todo al hacer foco para que el usuario pueda escribir directamente.
+function AmountInput({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={value}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+      placeholder="0"
+      className={className ?? "w-24 rounded-lg bg-white/5 border border-white/15 px-3 py-2.5 text-white text-base"}
+    />
+  );
+}
+
 interface Props {
   configured: boolean;
   user: SessionUser | null;
@@ -30,6 +55,7 @@ interface Props {
   allMatchBets: MatchBetEntry[];
   familyNames: string[];
   allTeams: string[];
+  userList: UserListEntry[];
 }
 
 export default function BettingView({
@@ -41,6 +67,7 @@ export default function BettingView({
   allMatchBets,
   familyNames,
   allTeams,
+  userList,
 }: Props) {
   if (!configured) {
     return (
@@ -63,6 +90,7 @@ export default function BettingView({
           userBets={userBets}
           allMatchBets={allMatchBets}
           ranking={ranking}
+          userList={userList}
         />
       ) : (
         <>
@@ -70,6 +98,7 @@ export default function BettingView({
           <MoneyRanking ranking={ranking} />
         </>
       )}
+
     </div>
   );
 }
@@ -308,16 +337,18 @@ function LoggedIn({
   userBets,
   allMatchBets,
   ranking,
+  userList,
 }: {
   user: SessionUser;
   matches: ApiMatch[];
   userBets: Bet[];
   allMatchBets: MatchBetEntry[];
   ranking: MoneyRankEntry[];
+  userList: UserListEntry[];
 }) {
   const router = useRouter();
   const [, startLogout] = useTransition();
-  const [section, setSection] = useState<"apostar" | "ranking" | "activas" | "todos">("apostar");
+  const [section, setSection] = useState<"apostar" | "ranking" | "activas" | "todos" | "transferir">("apostar");
 
   const matchById = useMemo(() => {
     const m = new Map<number, ApiMatch>();
@@ -348,6 +379,7 @@ function LoggedIn({
     { id: "todos" as const, label: "Apuestas de todos", icon: "👥" },
     { id: "ranking" as const, label: "Ranking", icon: "💰" },
     { id: "activas" as const, label: "Mis apuestas", icon: "📋" },
+    { id: "transferir" as const, label: "Transferir", icon: "💸" },
   ];
 
   return (
@@ -434,6 +466,11 @@ function LoggedIn({
           )}
         </div>
       )}
+
+      {/* Transferir */}
+      {section === "transferir" && (
+        <TransferSection user={user} userList={userList} />
+      )}
     </div>
   );
 }
@@ -448,7 +485,8 @@ function BetCard({
   allMatchBets: MatchBetEntry[];
 }) {
   const router = useRouter();
-  const [amount, setAmount] = useState(100);
+  const [amountStr, setAmountStr] = useState("100");
+  const amount = parseInt(amountStr) || 0;
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [confirm, setConfirm] = useState<Prediction | null>(null);
@@ -515,14 +553,7 @@ function BetCard({
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          <input
-            type="number"
-            min={1}
-            max={balance}
-            value={amount}
-            onChange={(e) => setAmount(Math.max(1, Math.floor(+e.target.value || 0)))}
-            className="w-24 rounded-lg bg-white/5 border border-white/15 px-3 py-2.5 text-white text-base"
-          />
+          <AmountInput value={amountStr} onChange={setAmountStr} />
           <div className="grid grid-cols-3 gap-2 flex-1">
             {options.map((o) => (
               <button
@@ -592,7 +623,8 @@ function MyBetRow({
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [editAmount, setEditAmount] = useState(bet.amount);
+  const [editAmountStr, setEditAmountStr] = useState(String(bet.amount));
+  const editAmount = parseInt(editAmountStr) || 0;
   const [editConfirm, setEditConfirm] = useState<Prediction | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -655,7 +687,7 @@ function MyBetRow({
           )}
           {canEdit && !editing && (
             <button
-              onClick={() => { setEditing(true); setEditAmount(bet.amount); setEditConfirm(null); setEditError(null); }}
+              onClick={() => { setEditing(true); setEditAmountStr(String(bet.amount)); setEditConfirm(null); setEditError(null); }}
               className="text-xs text-[#C8A84B] hover:text-[#e8c76b] transition-colors"
             >
               ✏️ Editar
@@ -690,12 +722,9 @@ function MyBetRow({
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                max={maxAmount}
-                value={editAmount}
-                onChange={(e) => setEditAmount(Math.max(1, Math.floor(+e.target.value || 0)))}
+              <AmountInput
+                value={editAmountStr}
+                onChange={setEditAmountStr}
                 className="w-24 rounded-lg bg-white/5 border border-white/15 px-3 py-2 text-white text-base"
               />
               <div className="grid grid-cols-3 gap-2 flex-1">
@@ -871,3 +900,93 @@ function MoneyRanking({ ranking, meName }: { ranking: MoneyRankEntry[]; meName?:
 }
 
 const RANK_CLASS = ["rank-1", "rank-2", "rank-3"];
+
+// ─── Transferencias ──────────────────────────────────────────────────────────
+function TransferSection({ user, userList }: { user: SessionUser; userList: UserListEntry[] }) {
+  const router = useRouter();
+  const [toId, setToId] = useState("");
+  const [amountStr, setAmountStr] = useState("100");
+  const amount = parseInt(amountStr) || 0;
+  const [confirm, setConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  const recipients = userList.filter((u) => u.id !== user.id);
+  const recipient = recipients.find((u) => u.id === toId);
+
+  const doTransfer = () => {
+    setError(null);
+    setSuccess(null);
+    setConfirm(false);
+    start(async () => {
+      const res = await transferAction(toId, amount);
+      if (res.ok) {
+        setSuccess(`Transferiste ${amount.toLocaleString("es-VE")} 🪙 a ${recipient?.name}.`);
+        setAmountStr("100");
+        setToId("");
+        router.refresh();
+      } else {
+        setError(res.error ?? "Error al transferir.");
+      }
+    });
+  };
+
+  return (
+    <div className="glass-card border p-5 max-w-sm">
+      <h3 className="font-heading text-lg text-[#C8A84B] tracking-wider mb-4">💸 TRANSFERIR MONEDAS</h3>
+
+      <label className="block text-xs text-white/50 mb-1">Destinatario</label>
+      <select
+        value={toId}
+        onChange={(e) => { setToId(e.target.value); setConfirm(false); setError(null); setSuccess(null); }}
+        className="w-full mb-4 rounded-lg bg-white/5 border border-white/15 px-3 py-2 text-white"
+      >
+        <option value="">— Selecciona a quién —</option>
+        {recipients.map((u) => (
+          <option key={u.id} value={u.id} className="bg-[#0d1117]">
+            {u.name} ({u.balance.toLocaleString("es-VE")} 🪙)
+          </option>
+        ))}
+      </select>
+
+      <label className="block text-xs text-white/50 mb-1">Monto (tu saldo: {user.balance.toLocaleString("es-VE")} 🪙)</label>
+      <AmountInput value={amountStr} onChange={(v) => { setAmountStr(v); setConfirm(false); }} />
+
+      {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+      {success && <p className="text-green-400 text-sm mt-3">{success}</p>}
+
+      {confirm ? (
+        <div className="mt-4 flex items-center gap-2 flex-wrap">
+          <p className="text-xs text-white/70 flex-1 min-w-0">
+            ¿Enviar <b className="text-white">{amount.toLocaleString("es-VE")} 🪙</b> a <b className="text-white">{recipient?.name}</b>?
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={doTransfer}
+              disabled={pending}
+              className="px-3 py-1.5 rounded-lg bg-[#C8A84B] text-black text-xs font-bold disabled:opacity-40"
+            >
+              {pending ? "…" : "Confirmar"}
+            </button>
+            <button
+              onClick={() => setConfirm(false)}
+              disabled={pending}
+              className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70 text-xs hover:bg-white/15"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => { setError(null); setSuccess(null); setConfirm(true); }}
+          disabled={!toId || amount < 1 || amount > user.balance}
+          className="mt-4 w-full py-2.5 rounded-lg bg-[#C8A84B] text-black font-bold disabled:opacity-40 transition-opacity"
+        >
+          Transferir
+        </button>
+      )}
+    </div>
+  );
+}

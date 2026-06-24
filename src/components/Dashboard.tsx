@@ -10,6 +10,7 @@ import type {
   MoneyRankEntry,
   ParticipantResult,
   SessionUser,
+  UserListEntry,
 } from "@/lib/types";
 import RankingTable from "./RankingTable";
 import MatchesView from "./MatchesView";
@@ -41,6 +42,7 @@ interface Props {
   allMatchBets: MatchBetEntry[];
   familyNames: string[];
   allTeams: string[];
+  userList: UserListEntry[];
 }
 
 export default function Dashboard({
@@ -57,6 +59,7 @@ export default function Dashboard({
   allMatchBets,
   familyNames,
   allTeams,
+  userList,
 }: Props) {
   const [tab, setTab] = useState<Tab>("ranking");
   const [refreshing, setRefreshing] = useState(false);
@@ -135,6 +138,7 @@ export default function Dashboard({
           allMatchBets={allMatchBets}
           familyNames={familyNames}
           allTeams={allTeams}
+          userList={userList}
         />
       )}
     </div>

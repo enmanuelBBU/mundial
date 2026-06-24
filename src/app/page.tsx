@@ -7,10 +7,11 @@ import {
   computeFamilyStandings,
   isDemoMode,
 } from "@/lib/football";
+import { toSpanishName } from "@/lib/teamMapping";
 import { isBettingConfigured } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/session";
-import { settlePendingBets, getUserBets, getMoneyRanking, getAllMatchBets, getAllUserTeams } from "@/lib/bets";
-import type { Bet, MatchBetEntry, MoneyRankEntry, Prediction, SessionUser } from "@/lib/types";
+import { settlePendingBets, getUserBets, getMoneyRanking, getAllMatchBets, getAllUserTeams, getUserList } from "@/lib/bets";
+import type { Bet, MatchBetEntry, MoneyRankEntry, Prediction, SessionUser, UserListEntry } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -20,11 +21,11 @@ export default async function HomePage() {
 
   const [matches, groups] = await Promise.all([getAllMatches(), getGroupTables()]);
 
-  // Lista de todos los equipos del torneo (para el selector de nuevos participantes).
+  // Lista de todos los equipos del torneo en español (para el selector de nuevos participantes).
   const allTeams = [...new Set(
     matches
       .filter((m) => m.home && m.away)
-      .flatMap((m) => [m.home!, m.away!])
+      .flatMap((m) => [toSpanishName(m.home!), toSpanishName(m.away!)])
   )].sort();
 
   // Combinar participants.json (originales) con selecciones guardadas en DB.
@@ -39,6 +40,7 @@ export default async function HomePage() {
   let userBets: Bet[] = [];
   let moneyRanking: MoneyRankEntry[] = [];
   let allMatchBets: MatchBetEntry[] = [];
+  let userList: UserListEntry[] = [];
 
   if (bettingConfigured) {
     try {
@@ -62,7 +64,11 @@ export default async function HomePage() {
 
       currentUser = await getCurrentUser();
       if (currentUser) userBets = await getUserBets(currentUser.id);
-      [moneyRanking, allMatchBets] = await Promise.all([getMoneyRanking(), getAllMatchBets()]);
+      [moneyRanking, allMatchBets, userList] = await Promise.all([
+        getMoneyRanking(),
+        getAllMatchBets(),
+        getUserList(),
+      ]);
     } catch (e) {
       // Si algo falla con la base de datos, el resto de la app sigue funcionando.
       console.error("Error en módulo de apuestas:", e);
@@ -90,6 +96,7 @@ export default async function HomePage() {
         allMatchBets={allMatchBets}
         familyNames={mergedFamilyNames}
         allTeams={allTeams}
+        userList={userList}
       />
     </main>
   );

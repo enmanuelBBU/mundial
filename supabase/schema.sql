@@ -45,6 +45,19 @@ create index if not exists user_teams_user_idx on public.user_teams(user_id);
 -- Seguridad: activamos RLS sin políticas, así NADIE puede leer/escribir con la
 -- clave pública (anon). La app accede solo desde el servidor con la service_role
 -- key, que ignora RLS. Esto mantiene los datos protegidos.
+-- Historial de transferencias entre participantes.
+create table if not exists public.transfers (
+  id            uuid primary key default gen_random_uuid(),
+  from_user_id  uuid not null references public.users(id) on delete cascade,
+  to_user_id    uuid not null references public.users(id) on delete cascade,
+  amount        integer not null check (amount > 0),
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists transfers_from_idx on public.transfers(from_user_id);
+create index if not exists transfers_to_idx   on public.transfers(to_user_id);
+
 alter table public.users      enable row level security;
 alter table public.bets       enable row level security;
 alter table public.user_teams enable row level security;
+alter table public.transfers  enable row level security;
