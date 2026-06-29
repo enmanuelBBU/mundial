@@ -91,26 +91,47 @@ export async function getGroupTables(): Promise<GroupTable[]> {
   }
 }
 
+// ─── Puntos por victoria según fase ─────────────────────────────────────────
+// Grupos: 3 pts · 16avos: 4 pts · 8vos: 6 pts · Cuartos: 8 pts
+// Semifinales: 10 pts · Final: 12 pts
+const WIN_POINTS: Record<string, number> = {
+  GROUP_STAGE: 3,
+  LAST_32: 4,   // 16avos de final
+  LAST_16: 6,   // 8vos de final
+  QUARTER_FINALS: 8,
+  SEMI_FINALS: 10,
+  THIRD_PLACE: 8, // mismo valor que cuartos
+  FINAL: 12,
+};
+
 // ─── Cálculo de puntos (función pura) ───────────────────────────────────────
 // Usa el campo `winner` de la API, así un triunfo por penales en eliminatorias
-// cuenta como victoria (3 pts). En fase de grupos winner = HOME/AWAY/DRAW.
+// cuenta como victoria. En fase de grupos winner = HOME/AWAY/DRAW.
+// Los puntos por victoria escalan con la fase del torneo.
 export function computeTeamStats(matches: ApiMatch[], apiTeamName: string): TeamStats {
   let wins = 0,
     draws = 0,
     losses = 0,
-    played = 0;
+    played = 0,
+    points = 0;
   for (const m of matches) {
     if (m.status !== "FINISHED") continue;
     const isHome = m.home === apiTeamName;
     const isAway = m.away === apiTeamName;
     if (!isHome && !isAway) continue;
     played++;
-    if (m.winner === "DRAW") draws++;
-    else if ((m.winner === "HOME_TEAM" && isHome) || (m.winner === "AWAY_TEAM" && isAway))
+    const winPts = WIN_POINTS[m.stage] ?? 3;
+    if (m.winner === "DRAW") {
+      draws++;
+      points += 1;
+    } else if ((m.winner === "HOME_TEAM" && isHome) || (m.winner === "AWAY_TEAM" && isAway)) {
       wins++;
-    else losses++;
+      points += winPts;
+    } else {
+      losses++;
+    }
   }
-  return { played, wins, draws, losses, points: wins * 3 + draws };
+  return { played, wins, draws, losses, points };
 }
 
 export function computeFamilyStandings(
