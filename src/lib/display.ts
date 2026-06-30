@@ -46,8 +46,24 @@ export function matchResultFor(
   const isHome = m.home === apiTeamName;
   const isAway = m.away === apiTeamName;
   if (!isHome && !isAway) return null;
-  if (m.winner === "DRAW") return "draw";
-  if ((m.winner === "HOME_TEAM" && isHome) || (m.winner === "AWAY_TEAM" && isAway))
+
+  let winner = m.winner;
+  if (
+    m.duration === "PENALTY_SHOOTOUT" &&
+    m.penaltiesHome !== undefined &&
+    m.penaltiesHome !== null &&
+    m.penaltiesAway !== undefined &&
+    m.penaltiesAway !== null
+  ) {
+    if (m.penaltiesHome > m.penaltiesAway) {
+      winner = "HOME_TEAM";
+    } else if (m.penaltiesAway > m.penaltiesHome) {
+      winner = "AWAY_TEAM";
+    }
+  }
+
+  if (winner === "DRAW") return "draw";
+  if ((winner === "HOME_TEAM" && isHome) || (winner === "AWAY_TEAM" && isAway))
     return "win";
   return "loss";
 }

@@ -47,11 +47,27 @@ export default async function HomePage() {
       // Liquidar apuestas de partidos ya terminados
       const results = new Map<number, Prediction>();
       for (const m of matches) {
-        if (m.status === "FINISHED" && m.winner) {
-          results.set(
-            m.id,
-            m.winner === "HOME_TEAM" ? "HOME" : m.winner === "AWAY_TEAM" ? "AWAY" : "DRAW"
-          );
+        if (m.status === "FINISHED") {
+          let winner = m.winner;
+          if (
+            m.duration === "PENALTY_SHOOTOUT" &&
+            m.penaltiesHome !== undefined &&
+            m.penaltiesHome !== null &&
+            m.penaltiesAway !== undefined &&
+            m.penaltiesAway !== null
+          ) {
+            if (m.penaltiesHome > m.penaltiesAway) {
+              winner = "HOME_TEAM";
+            } else if (m.penaltiesAway > m.penaltiesHome) {
+              winner = "AWAY_TEAM";
+            }
+          }
+          if (winner) {
+            results.set(
+              m.id,
+              winner === "HOME_TEAM" ? "HOME" : winner === "AWAY_TEAM" ? "AWAY" : "DRAW"
+            );
+          }
         }
       }
       await settlePendingBets(results);

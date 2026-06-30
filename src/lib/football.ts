@@ -51,6 +51,8 @@ export async function getAllMatches(): Promise<ApiMatch[]> {
       awayGoals: m.score?.fullTime?.away ?? null,
       winner: m.score?.winner ?? null,
       duration: m.score?.duration ?? null,
+      penaltiesHome: m.score?.penalties?.home ?? null,
+      penaltiesAway: m.score?.penalties?.away ?? null,
     }));
     matchesCache = { data: matches, ts: Date.now() };
     return matches;
@@ -121,10 +123,26 @@ export function computeTeamStats(matches: ApiMatch[], apiTeamName: string): Team
     if (!isHome && !isAway) continue;
     played++;
     const winPts = WIN_POINTS[m.stage] ?? 3;
-    if (m.winner === "DRAW") {
+
+    let winner = m.winner;
+    if (
+      m.duration === "PENALTY_SHOOTOUT" &&
+      m.penaltiesHome !== undefined &&
+      m.penaltiesHome !== null &&
+      m.penaltiesAway !== undefined &&
+      m.penaltiesAway !== null
+    ) {
+      if (m.penaltiesHome > m.penaltiesAway) {
+        winner = "HOME_TEAM";
+      } else if (m.penaltiesAway > m.penaltiesHome) {
+        winner = "AWAY_TEAM";
+      }
+    }
+
+    if (winner === "DRAW") {
       draws++;
       points += 1;
-    } else if ((m.winner === "HOME_TEAM" && isHome) || (m.winner === "AWAY_TEAM" && isAway)) {
+    } else if ((winner === "HOME_TEAM" && isHome) || (winner === "AWAY_TEAM" && isAway)) {
       wins++;
       points += winPts;
     } else {
@@ -160,9 +178,13 @@ function fin(
   h: string,
   a: string,
   hg: number,
-  ag: number
+  ag: number,
+  winner?: "HOME_TEAM" | "AWAY_TEAM" | "DRAW",
+  duration?: "REGULAR" | "EXTRA_TIME" | "PENALTY_SHOOTOUT",
+  penaltiesHome?: number | null,
+  penaltiesAway?: number | null
 ): ApiMatch {
-  const winner = hg > ag ? "HOME_TEAM" : hg < ag ? "AWAY_TEAM" : "DRAW";
+  const finalWinner = winner ?? (hg > ag ? "HOME_TEAM" : hg < ag ? "AWAY_TEAM" : "DRAW");
   return {
     id,
     utcDate: date,
@@ -178,8 +200,10 @@ function fin(
     awayCrest: null,
     homeGoals: hg,
     awayGoals: ag,
-    winner,
-    duration: "REGULAR",
+    winner: finalWinner,
+    duration: duration ?? "REGULAR",
+    penaltiesHome: penaltiesHome ?? null,
+    penaltiesAway: penaltiesAway ?? null,
   };
 }
 function sched(

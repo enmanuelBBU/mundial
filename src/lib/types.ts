@@ -26,6 +26,8 @@ export interface ApiMatch {
   awayGoals: number | null;
   winner: "HOME_TEAM" | "AWAY_TEAM" | "DRAW" | null;
   duration: string | null; // REGULAR | EXTRA_TIME | PENALTY_SHOOTOUT
+  penaltiesHome?: number | null;
+  penaltiesAway?: number | null;
 }
 
 export interface GroupRow {

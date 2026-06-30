@@ -114,6 +114,21 @@ function KnockoutCard({ m }: { m: ApiMatch }) {
   const done = isFinished(m);
   const live = isLive(m);
 
+  let winner = m.winner;
+  if (
+    m.duration === "PENALTY_SHOOTOUT" &&
+    m.penaltiesHome !== undefined &&
+    m.penaltiesHome !== null &&
+    m.penaltiesAway !== undefined &&
+    m.penaltiesAway !== null
+  ) {
+    if (m.penaltiesHome > m.penaltiesAway) {
+      winner = "HOME_TEAM";
+    } else if (m.penaltiesAway > m.penaltiesHome) {
+      winner = "AWAY_TEAM";
+    }
+  }
+
   return (
     <div
       className={`rounded-lg border px-2.5 py-2 text-xs ${
@@ -126,7 +141,8 @@ function KnockoutCard({ m }: { m: ApiMatch }) {
         name={toSpanishName(m.home)}
         crest={m.homeCrest}
         goals={done || live ? m.homeGoals : null}
-        winner={m.winner === "HOME_TEAM"}
+        penalties={done && m.duration === "PENALTY_SHOOTOUT" ? m.penaltiesHome : null}
+        winner={winner === "HOME_TEAM"}
         tbd={tbdHome}
       />
       <div className="h-px bg-white/8 my-1" />
@@ -134,7 +150,8 @@ function KnockoutCard({ m }: { m: ApiMatch }) {
         name={toSpanishName(m.away)}
         crest={m.awayCrest}
         goals={done || live ? m.awayGoals : null}
-        winner={m.winner === "AWAY_TEAM"}
+        penalties={done && m.duration === "PENALTY_SHOOTOUT" ? m.penaltiesAway : null}
+        winner={winner === "AWAY_TEAM"}
         tbd={tbdAway}
       />
       <div className="text-[10px] text-white/30 text-center mt-1.5">
@@ -152,12 +169,14 @@ function TeamLine({
   name,
   crest,
   goals,
+  penalties,
   winner,
   tbd,
 }: {
   name: string;
   crest: string | null;
   goals: number | null;
+  penalties?: number | null;
   winner: boolean;
   tbd: boolean;
 }) {
@@ -167,7 +186,14 @@ function TeamLine({
       <span className={`flex-1 truncate ${winner ? "font-bold text-white" : ""}`}>
         {tbd ? "Por definir" : name}
       </span>
-      {goals !== null && <span className="font-bold tabular-nums">{goals}</span>}
+      {goals !== null && (
+        <span className="font-bold tabular-nums flex items-center gap-0.5">
+          {goals}
+          {penalties !== undefined && penalties !== null && (
+            <span className="text-[10px] text-white/50 font-normal">({penalties})</span>
+          )}
+        </span>
+      )}
     </div>
   );
 }

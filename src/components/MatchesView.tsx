@@ -92,8 +92,24 @@ function MatchRow({ m }: { m: ApiMatch }) {
   const done = isFinished(m);
   const homeName = toSpanishName(m.home);
   const awayName = toSpanishName(m.away);
-  const homeWon = m.winner === "HOME_TEAM";
-  const awayWon = m.winner === "AWAY_TEAM";
+
+  let winner = m.winner;
+  if (
+    m.duration === "PENALTY_SHOOTOUT" &&
+    m.penaltiesHome !== undefined &&
+    m.penaltiesHome !== null &&
+    m.penaltiesAway !== undefined &&
+    m.penaltiesAway !== null
+  ) {
+    if (m.penaltiesHome > m.penaltiesAway) {
+      winner = "HOME_TEAM";
+    } else if (m.penaltiesAway > m.penaltiesHome) {
+      winner = "AWAY_TEAM";
+    }
+  }
+
+  const homeWon = winner === "HOME_TEAM";
+  const awayWon = winner === "AWAY_TEAM";
 
   return (
     <div className="glass-card border px-3 py-2.5 flex items-center gap-2">
@@ -123,13 +139,24 @@ function MatchRow({ m }: { m: ApiMatch }) {
       </div>
 
       {/* Marcador */}
-      <div className="flex-shrink-0 w-14 text-center">
+      <div className="flex-shrink-0 min-w-[3.5rem] text-center flex flex-col items-center justify-center">
         {done || live ? (
-          <span
-            className={`font-bold tabular-nums ${live ? "text-red-400" : "text-white"}`}
-          >
-            {m.homeGoals}<span className="text-white/30 mx-0.5">-</span>{m.awayGoals}
-          </span>
+          <>
+            <span
+              className={`font-bold tabular-nums ${live ? "text-red-400" : "text-white"}`}
+            >
+              {m.homeGoals}<span className="text-white/30 mx-0.5">-</span>{m.awayGoals}
+            </span>
+            {m.duration === "PENALTY_SHOOTOUT" &&
+              m.penaltiesHome !== undefined &&
+              m.penaltiesHome !== null &&
+              m.penaltiesAway !== undefined &&
+              m.penaltiesAway !== null && (
+                <span className="text-[10px] text-white/50 block mt-0.5 leading-none">
+                  ({m.penaltiesHome}-{m.penaltiesAway} pen.)
+                </span>
+              )}
+          </>
         ) : (
           <span className="text-white/30 text-sm">vs</span>
         )}
